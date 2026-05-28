@@ -8,17 +8,23 @@ const int IMB_REGISTRY_MAX_ITEMS = 64;
 const int IMB_MESH_MAX_BOXES = 8;
 const int IMB_REPORT_MAX_ENTRIES = 512;
 const int IMB_PROTO_BUF_MAX = 256;
+const String IMB_SERVICE_UUID = "e5d50000-01d0-47e0-afc5-01e466d9298e";
+const String IMB_CHAR_EVENT_NOTIFY = "e5d50001-01d0-47e0-afc5-01e466d9298e";
+const String IMB_CHAR_REPORT_NOTIFY = "e5d50002-01d0-47e0-afc5-01e466d9298e";
+const String IMB_CHAR_COMMAND_WRITE = "e5d50003-01d0-47e0-afc5-01e466d9298e";
 
 enum imb_op_mode {
   mode_setup, // 0
   mode_field_check, // 1
   mode_registration, // 2
+  mode_registration_incomplete, // 3
 }
 
 const Map<imb_op_mode, int> imb_op_modeValues = {
   imb_op_mode.mode_setup: 0,
   imb_op_mode.mode_field_check: 1,
   imb_op_mode.mode_registration: 2,
+  imb_op_mode.mode_registration_incomplete: 3,
 };
 
 enum imb_msg_type {

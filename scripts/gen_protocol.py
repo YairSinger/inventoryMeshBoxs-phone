@@ -14,20 +14,38 @@ def parse_header(content):
     structs = {}
     constants = {}
 
-    const_matches = re.findall(r"#define\s+(\w+)\s+([() \w+*-]+)", content)
-    for name, val_str in const_matches:
-        try:
-            clean_val = val_str.strip()
-            sorted_keys = sorted(constants.keys(), key=len, reverse=True)
-            for c_name in sorted_keys:
-                clean_val = clean_val.replace(c_name, str(constants[c_name]))
-            constants[name] = eval(clean_val)
-        except:
-            pass
-
+    # Clean comments first
     content_clean = re.sub(r"/\*.*?\*/", "", content, flags=re.DOTALL)
     content_clean = re.sub(r"//.*", "", content_clean)
 
+    # Parse constants (ints and strings)
+    const_matches = re.findall(r"#define\s+(\w+)\s+(.+)", content_clean)
+    for name, val_str in const_matches:
+        val_str = val_str.strip()
+        if not val_str: continue
+        
+        if val_str.startswith('"') and val_str.endswith('"'):
+            constants[name] = val_str 
+        else:
+            try:
+                # Basic math/int detection
+                clean_val = val_str
+                # Replace existing constants in the expression
+                sorted_keys = sorted([k for k in constants.keys() if isinstance(constants[k], int)], key=len, reverse=True)
+                for c_name in sorted_keys:
+                    clean_val = clean_val.replace(c_name, str(constants[c_name]))
+                
+                # Check if it's purely mathematical (0-9, +, -, *, /, (, ), spaces)
+                if re.match(r"^[0-9+*/() \-]+$", clean_val):
+                    constants[name] = int(eval(clean_val))
+                elif re.match(r"^0x[0-9a-fA-F]+$", clean_val):
+                    constants[name] = int(clean_val, 0)
+                elif clean_val.isdigit():
+                    constants[name] = int(clean_val)
+            except:
+                pass
+
+    # Parse enums
     enum_blocks = re.findall(r"typedef enum\s*{(.*?)}\s*(\w+)_e;", content_clean, re.DOTALL)
     for block, name in enum_blocks:
         values = {}
@@ -45,6 +63,7 @@ def parse_header(content):
             current_val = values[e_name] + 1
         enums[name] = values
 
+    # Parse structs
     struct_blocks = re.findall(r"typedef struct __attribute__\(\(packed\)\)\s*{(.*?)}\s*(\w+)_t;", content_clean, re.DOTALL)
     for block, name in struct_blocks:
         fields = []
@@ -68,7 +87,10 @@ def generate_dart(constants, enums, structs):
     ]
 
     for name, val in constants.items():
-        lines.append(f"const int {name} = {val};")
+        if isinstance(val, str):
+            lines.append(f"const String {name} = {val};")
+        else:
+            lines.append(f"const int {name} = {val};")
     lines.append("")
 
     for name, values in enums.items():
