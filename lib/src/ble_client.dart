@@ -3,7 +3,15 @@ import 'dart:typed_data';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../protocol.dart';
 
-class BleClient {
+abstract class IBleClient {
+  Stream<List<int>> get eventStream;
+  Future<void> connect(BluetoothDevice device);
+  Future<void> sendCommand(Uint8List data);
+  bool get isAuthenticated;
+  Future<void> disconnect();
+}
+
+class BleClient implements IBleClient {
   final int pinHash;
   BluetoothDevice? _device;
   bool _isAuthenticated = false;
@@ -12,14 +20,17 @@ class BleClient {
   Completer<imb_ack_status>? _authCompleter;
   
   final _eventStreamController = StreamController<List<int>>.broadcast();
+  @override
   Stream<List<int>> get eventStream => _eventStreamController.stream;
 
   BluetoothCharacteristic? _commandChar;
 
   BleClient({required this.pinHash});
 
+  @override
   bool get isAuthenticated => _isAuthenticated;
 
+  @override
   Future<void> connect(BluetoothDevice device) async {
     _device = device;
     _isAuthenticated = false;
@@ -87,11 +98,13 @@ class BleClient {
     }
   }
 
+  @override
   Future<void> sendCommand(Uint8List data) async {
     if (_commandChar == null) throw Exception('Not connected');
     await _commandChar!.write(data);
   }
 
+  @override
   Future<void> disconnect() async {
     await _eventSub?.cancel();
     await _device?.disconnect();

@@ -12,7 +12,7 @@ class PendingTag {
 }
 
 class BoxSessionProvider extends ChangeNotifier {
-  final BleClient bleClient;
+  final IBleClient bleClient;
   
   imb_op_mode _currentMode = imb_op_mode.mode_field_check;
   bool _isRegistrationIncomplete = false;

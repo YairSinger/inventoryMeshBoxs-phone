@@ -5,9 +5,16 @@ import 'src/box_session_provider.dart';
 import 'src/ui/registration_overlay.dart';
 import 'protocol.dart';
 
+import 'package:flutter/foundation.dart';
+import 'src/mock_ble_client.dart';
+
 void main() {
-  // In a real app, these would come from scanning/user input
-  final bleClient = BleClient(pinHash: 0x12345678); 
+  // Use MockBleClient for rapid testing if in debug mode or explicitly requested
+  const useMock = kDebugMode;
+  
+  final IBleClient bleClient = useMock 
+    ? MockBleClient() 
+    : BleClient(pinHash: 0x12345678); 
   
   runApp(
     MultiProvider(
@@ -28,7 +35,7 @@ class MyApp extends StatelessWidget {
       title: 'Inventory Mesh Box',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
-        useMaterialDesign: true,
+        useMaterial3: true,
       ),
       home: const DashboardPage(),
     );
@@ -47,6 +54,12 @@ class DashboardPage extends StatelessWidget {
         title: const Text('Inventory Mesh Box'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          if (provider.bleClient is MockBleClient && provider.currentMode == imb_op_mode.mode_registration)
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline),
+              tooltip: 'Simulate Tag Drop',
+              onPressed: () => (provider.bleClient as MockBleClient).simulateTagDrop('TAG-${DateTime.now().millisecondsSinceEpoch}'),
+            ),
           _buildConnectionStatus(provider.bleClient),
         ],
       ),
@@ -88,7 +101,7 @@ class DashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _buildConnectionStatus(BleClient client) {
+  Widget _buildConnectionStatus(IBleClient client) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Icon(
