@@ -33,6 +33,7 @@ enum imb_msg_type {
   msg_report_chunk, // 3
   msg_event_ack, // 4
   msg_event_dropped, // 5
+  msg_event_log_chunk, // 6
   msg_cmd_mode, // 16
   msg_cmd_name, // 17
   msg_cmd_accept, // 18
@@ -41,6 +42,8 @@ enum imb_msg_type {
   msg_cmd_report_ack, // 21
   msg_cmd_report_nack, // 22
   msg_cmd_unbond, // 23
+  msg_cmd_get_log, // 24
+  msg_cmd_mesh_status, // 25
 }
 
 const Map<imb_msg_type, int> imb_msg_typeValues = {
@@ -49,6 +52,7 @@ const Map<imb_msg_type, int> imb_msg_typeValues = {
   imb_msg_type.msg_report_chunk: 3,
   imb_msg_type.msg_event_ack: 4,
   imb_msg_type.msg_event_dropped: 5,
+  imb_msg_type.msg_event_log_chunk: 6,
   imb_msg_type.msg_cmd_mode: 16,
   imb_msg_type.msg_cmd_name: 17,
   imb_msg_type.msg_cmd_accept: 18,
@@ -57,6 +61,8 @@ const Map<imb_msg_type, int> imb_msg_typeValues = {
   imb_msg_type.msg_cmd_report_ack: 21,
   imb_msg_type.msg_cmd_report_nack: 22,
   imb_msg_type.msg_cmd_unbond: 23,
+  imb_msg_type.msg_cmd_get_log: 24,
+  imb_msg_type.msg_cmd_mesh_status: 25,
 };
 
 enum imb_ack_status {
@@ -68,6 +74,7 @@ enum imb_ack_status {
   ack_unknown_uid, // 5
   ack_not_authed, // 6
   ack_registration_incomplete, // 7
+  ack_log_overflow, // 8
 }
 
 const Map<imb_ack_status, int> imb_ack_statusValues = {
@@ -79,6 +86,7 @@ const Map<imb_ack_status, int> imb_ack_statusValues = {
   imb_ack_status.ack_unknown_uid: 5,
   imb_ack_status.ack_not_authed: 6,
   imb_ack_status.ack_registration_incomplete: 7,
+  imb_ack_status.ack_log_overflow: 8,
 };
 
 class CmdHeader {
@@ -408,6 +416,149 @@ class ReportEntry {
   }
 }
 
+class LogEntry {
+  final int seq_id;
+  final int box_id;
+  final int event_type;
+  final String uid;
+
+  LogEntry({
+    required this.seq_id,
+    required this.box_id,
+    required this.event_type,
+    required this.uid,
+  });
+
+  factory LogEntry.fromBytes(Uint8List bytes) {
+    var offset = 0;
+    var data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes);
+    Map<String, dynamic> inits = {};
+    inits['seq_id'] = data.getUint16(offset, Endian.little);
+    offset += 2;
+    inits['box_id'] = data.getUint16(offset, Endian.little);
+    offset += 2;
+    inits['event_type'] = data.getUint8(offset);
+    offset += 1;
+    inits['uid'] = String.fromCharCodes(bytes.sublist(offset, offset + IMB_UID_LEN)).split('\x00')[0];
+    offset += IMB_UID_LEN;
+    return LogEntry(
+      seq_id: inits['seq_id'],
+      box_id: inits['box_id'],
+      event_type: inits['event_type'],
+      uid: inits['uid'],
+    );
+  }
+
+  Uint8List toBytes() {
+    var bytes = Uint8List(2 + 2 + 1 + IMB_UID_LEN);
+    var data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes);
+    var offset = 0;
+    data.setUint16(offset, seq_id, Endian.little);
+    offset += 2;
+    data.setUint16(offset, box_id, Endian.little);
+    offset += 2;
+    data.setUint8(offset, event_type);
+    offset += 1;
+    var uidBytes = Uint8List.fromList(uid.codeUnits);
+    for (var i = 0; i < uidBytes.length && i < IMB_UID_LEN; i++) {
+      bytes[offset + i] = uidBytes[i];
+    }
+    offset += IMB_UID_LEN;
+    return bytes;
+  }
+}
+
+class CmdGetLog {
+  final int msg_type;
+  final int msg_id;
+  final int last_seen_id;
+
+  CmdGetLog({
+    required this.msg_type,
+    required this.msg_id,
+    required this.last_seen_id,
+  });
+
+  factory CmdGetLog.fromBytes(Uint8List bytes) {
+    var offset = 0;
+    var data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes);
+    Map<String, dynamic> inits = {};
+    inits['msg_type'] = data.getUint8(offset);
+    offset += 1;
+    inits['msg_id'] = data.getUint8(offset);
+    offset += 1;
+    inits['last_seen_id'] = data.getUint16(offset, Endian.little);
+    offset += 2;
+    return CmdGetLog(
+      msg_type: inits['msg_type'],
+      msg_id: inits['msg_id'],
+      last_seen_id: inits['last_seen_id'],
+    );
+  }
+
+  Uint8List toBytes() {
+    var bytes = Uint8List(1 + 1 + 2);
+    var data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes);
+    var offset = 0;
+    data.setUint8(offset, msg_type);
+    offset += 1;
+    data.setUint8(offset, msg_id);
+    offset += 1;
+    data.setUint16(offset, last_seen_id, Endian.little);
+    offset += 2;
+    return bytes;
+  }
+}
+
+class EventLogChunk {
+  final int msg_type;
+  final int chunk_index;
+  final int chunk_total;
+  final int entries_in_chunk;
+
+  EventLogChunk({
+    required this.msg_type,
+    required this.chunk_index,
+    required this.chunk_total,
+    required this.entries_in_chunk,
+  });
+
+  factory EventLogChunk.fromBytes(Uint8List bytes) {
+    var offset = 0;
+    var data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes);
+    Map<String, dynamic> inits = {};
+    inits['msg_type'] = data.getUint8(offset);
+    offset += 1;
+    inits['chunk_index'] = data.getUint16(offset, Endian.little);
+    offset += 2;
+    inits['chunk_total'] = data.getUint16(offset, Endian.little);
+    offset += 2;
+    inits['entries_in_chunk'] = data.getUint8(offset);
+    offset += 1;
+    return EventLogChunk(
+      msg_type: inits['msg_type'],
+      chunk_index: inits['chunk_index'],
+      chunk_total: inits['chunk_total'],
+      entries_in_chunk: inits['entries_in_chunk'],
+    );
+  }
+
+  Uint8List toBytes() {
+    var bytes = Uint8List(1 + 2 + 2 + 1);
+    var data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes);
+    var offset = 0;
+    data.setUint8(offset, msg_type);
+    offset += 1;
+    data.setUint16(offset, chunk_index, Endian.little);
+    offset += 2;
+    data.setUint16(offset, chunk_total, Endian.little);
+    offset += 2;
+    data.setUint8(offset, entries_in_chunk);
+    offset += 1;
+    return bytes;
+  }
+}
+
 class CmdMode {
   final int msg_type;
   final int msg_id;
@@ -561,13 +712,13 @@ class Adv {
   final int company_id;
   final int pin_hash;
   final int op_mode;
-  final int flags;
+  final int mesh_epoch;
 
   Adv({
     required this.company_id,
     required this.pin_hash,
     required this.op_mode,
-    required this.flags,
+    required this.mesh_epoch,
   });
 
   factory Adv.fromBytes(Uint8List bytes) {
@@ -580,13 +731,13 @@ class Adv {
     offset += 4;
     inits['op_mode'] = data.getUint8(offset);
     offset += 1;
-    inits['flags'] = data.getUint8(offset);
+    inits['mesh_epoch'] = data.getUint8(offset);
     offset += 1;
     return Adv(
       company_id: inits['company_id'],
       pin_hash: inits['pin_hash'],
       op_mode: inits['op_mode'],
-      flags: inits['flags'],
+      mesh_epoch: inits['mesh_epoch'],
     );
   }
 
@@ -600,7 +751,7 @@ class Adv {
     offset += 4;
     data.setUint8(offset, op_mode);
     offset += 1;
-    data.setUint8(offset, flags);
+    data.setUint8(offset, mesh_epoch);
     offset += 1;
     return bytes;
   }

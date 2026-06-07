@@ -18,7 +18,7 @@ void main() {
       expect(adv.company_id, 0xFFFF);
       expect(adv.pin_hash, 0x12345678);
       expect(adv.op_mode, imb_op_modeValues[imb_op_mode.mode_field_check]);
-      expect(adv.flags, 0x01);
+      expect(adv.mesh_epoch, 0x01);
     });
 
     test('GREEN: Should identify if a box belongs to our mesh', () {
@@ -27,7 +27,7 @@ void main() {
         company_id: 0xFFFF,
         pin_hash: 0x12345678,
         op_mode: 1,
-        flags: 0,
+        mesh_epoch: 0,
       );
 
       final isMyBox = BoxManager.isMyBox(adv, myPinHash);
@@ -40,7 +40,7 @@ void main() {
         company_id: 0xFFFF,
         pin_hash: 0xAAAAAAAA,
         op_mode: 1,
-        flags: 0,
+        mesh_epoch: 0,
       );
 
       final isMyBox = BoxManager.isMyBox(adv, myPinHash);
