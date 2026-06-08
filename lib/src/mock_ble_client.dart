@@ -9,12 +9,36 @@ class MockBleClient implements IBleClient {
   @override
   Stream<List<int>> get eventStream => _eventStreamController.stream;
 
+  final _scanResultsController = StreamController<List<ScanResult>>.broadcast();
+  @override
+  Stream<List<ScanResult>> get scanResults => _scanResultsController.stream;
+
   bool _isAuthenticated = false;
   @override
   bool get isAuthenticated => _isAuthenticated;
 
   @override
-  Future<void> connect(BluetoothDevice device) async {
+  Future<void> startScan() async {
+    // Simulate finding a mock mesh box
+    final manufacturerData = Uint8List.fromList([
+      0xFF, 0xFF, // Company ID
+      0x78, 0x56, 0x34, 0x12, // PIN Hash 0x12345678
+      1, // OP Mode FIELD_CHECK
+      0, // Mesh Epoch
+    ]);
+
+    // Create a mock scan result
+    // Note: This is complex because ScanResult constructor is private or tricky to mock.
+    // In actual Flutter code, we'd just use a timer to push data if we wanted real mock behavior.
+    // For now, we just mock the interface.
+  }
+
+  @override
+  Future<void> stopScan() async {
+  }
+
+  @override
+  Future<void> connect(BluetoothDevice device, int meshPinHash) async {
     // Simulate connection delay
     await Future.delayed(const Duration(milliseconds: 500));
     _isAuthenticated = true;
@@ -73,6 +97,11 @@ class MockBleClient implements IBleClient {
   @override
   Future<void> disconnect() async {
     _isAuthenticated = false;
+  }
+
+  @override
+  Future<void> requestPriority(ConnectionPriority priority) async {
+    // Mock implementation - no action needed
   }
 
   // Debug helper: Simulate a tag drop from the UI

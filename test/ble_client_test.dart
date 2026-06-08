@@ -73,7 +73,7 @@ void main() {
         return null;
       });
 
-      await expectLater(client.connect(mockDevice), throwsException);
+      await expectLater(client.connect(mockDevice, 0), throwsException);
       
       await eventController.close();
     });

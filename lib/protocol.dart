@@ -44,6 +44,7 @@ enum imb_msg_type {
   msg_cmd_unbond, // 23
   msg_cmd_get_log, // 24
   msg_cmd_mesh_status, // 25
+  msg_cmd_box_name, // 26
 }
 
 const Map<imb_msg_type, int> imb_msg_typeValues = {
@@ -63,6 +64,7 @@ const Map<imb_msg_type, int> imb_msg_typeValues = {
   imb_msg_type.msg_cmd_unbond: 23,
   imb_msg_type.msg_cmd_get_log: 24,
   imb_msg_type.msg_cmd_mesh_status: 25,
+  imb_msg_type.msg_cmd_box_name: 26,
 };
 
 enum imb_ack_status {
@@ -704,6 +706,173 @@ class CmdAccept {
     offset += IMB_UID_LEN;
     data.setUint8(offset, accepted);
     offset += 1;
+    return bytes;
+  }
+}
+
+class CmdUnbond {
+  final int msg_type;
+  final int msg_id;
+
+  CmdUnbond({
+    required this.msg_type,
+    required this.msg_id,
+  });
+
+  factory CmdUnbond.fromBytes(Uint8List bytes) {
+    var offset = 0;
+    var data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes);
+    Map<String, dynamic> inits = {};
+    inits['msg_type'] = data.getUint8(offset);
+    offset += 1;
+    inits['msg_id'] = data.getUint8(offset);
+    offset += 1;
+    return CmdUnbond(
+      msg_type: inits['msg_type'],
+      msg_id: inits['msg_id'],
+    );
+  }
+
+  Uint8List toBytes() {
+    var bytes = Uint8List(1 + 1);
+    var data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes);
+    var offset = 0;
+    data.setUint8(offset, msg_type);
+    offset += 1;
+    data.setUint8(offset, msg_id);
+    offset += 1;
+    return bytes;
+  }
+}
+
+class CmdSetPin {
+  final int msg_type;
+  final int msg_id;
+  final int pin_hash;
+  final String box_name;
+
+  CmdSetPin({
+    required this.msg_type,
+    required this.msg_id,
+    required this.pin_hash,
+    required this.box_name,
+  });
+
+  factory CmdSetPin.fromBytes(Uint8List bytes) {
+    var offset = 0;
+    var data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes);
+    Map<String, dynamic> inits = {};
+    inits['msg_type'] = data.getUint8(offset);
+    offset += 1;
+    inits['msg_id'] = data.getUint8(offset);
+    offset += 1;
+    inits['pin_hash'] = data.getUint32(offset, Endian.little);
+    offset += 4;
+    inits['box_name'] = String.fromCharCodes(bytes.sublist(offset, offset + IMB_NAME_LEN)).split('\x00')[0];
+    offset += IMB_NAME_LEN;
+    return CmdSetPin(
+      msg_type: inits['msg_type'],
+      msg_id: inits['msg_id'],
+      pin_hash: inits['pin_hash'],
+      box_name: inits['box_name'],
+    );
+  }
+
+  Uint8List toBytes() {
+    var bytes = Uint8List(1 + 1 + 4 + IMB_NAME_LEN);
+    var data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes);
+    var offset = 0;
+    data.setUint8(offset, msg_type);
+    offset += 1;
+    data.setUint8(offset, msg_id);
+    offset += 1;
+    data.setUint32(offset, pin_hash, Endian.little);
+    offset += 4;
+    var box_nameBytes = Uint8List.fromList(box_name.codeUnits);
+    for (var i = 0; i < box_nameBytes.length && i < IMB_NAME_LEN; i++) {
+      bytes[offset + i] = box_nameBytes[i];
+    }
+    offset += IMB_NAME_LEN;
+    return bytes;
+  }
+}
+
+class CmdMeshStatus {
+  final int msg_type;
+  final int msg_id;
+
+  CmdMeshStatus({
+    required this.msg_type,
+    required this.msg_id,
+  });
+
+  factory CmdMeshStatus.fromBytes(Uint8List bytes) {
+    var offset = 0;
+    var data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes);
+    Map<String, dynamic> inits = {};
+    inits['msg_type'] = data.getUint8(offset);
+    offset += 1;
+    inits['msg_id'] = data.getUint8(offset);
+    offset += 1;
+    return CmdMeshStatus(
+      msg_type: inits['msg_type'],
+      msg_id: inits['msg_id'],
+    );
+  }
+
+  Uint8List toBytes() {
+    var bytes = Uint8List(1 + 1);
+    var data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes);
+    var offset = 0;
+    data.setUint8(offset, msg_type);
+    offset += 1;
+    data.setUint8(offset, msg_id);
+    offset += 1;
+    return bytes;
+  }
+}
+
+class CmdBoxName {
+  final int msg_type;
+  final int msg_id;
+  final String name;
+
+  CmdBoxName({
+    required this.msg_type,
+    required this.msg_id,
+    required this.name,
+  });
+
+  factory CmdBoxName.fromBytes(Uint8List bytes) {
+    var offset = 0;
+    var data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes);
+    Map<String, dynamic> inits = {};
+    inits['msg_type'] = data.getUint8(offset);
+    offset += 1;
+    inits['msg_id'] = data.getUint8(offset);
+    offset += 1;
+    inits['name'] = String.fromCharCodes(bytes.sublist(offset, offset + IMB_NAME_LEN)).split('\x00')[0];
+    offset += IMB_NAME_LEN;
+    return CmdBoxName(
+      msg_type: inits['msg_type'],
+      msg_id: inits['msg_id'],
+      name: inits['name'],
+    );
+  }
+
+  Uint8List toBytes() {
+    var bytes = Uint8List(1 + 1 + IMB_NAME_LEN);
+    var data = ByteData.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes);
+    var offset = 0;
+    data.setUint8(offset, msg_type);
+    offset += 1;
+    data.setUint8(offset, msg_id);
+    offset += 1;
+    var nameBytes = Uint8List.fromList(name.codeUnits);
+    for (var i = 0; i < nameBytes.length && i < IMB_NAME_LEN; i++) {
+      bytes[offset + i] = nameBytes[i];
+    }
+    offset += IMB_NAME_LEN;
     return bytes;
   }
 }

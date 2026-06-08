@@ -187,6 +187,7 @@ class _BoxList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<BoxSessionProvider>();
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -201,6 +202,12 @@ class _BoxList extends StatelessWidget {
             ),
             title: Text(box.name),
             subtitle: Text('${box.isOnline ? "Online" : "Last seen ${box.lastSeen}"} • ${box.itemCount} Items'),
+            trailing: box.isOnline 
+              ? IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 20),
+                  onPressed: () => _showRenameBoxDialog(context, provider, box),
+                )
+              : null,
             children: [
               ListView.builder(
                 shrinkWrap: true,
@@ -222,6 +229,41 @@ class _BoxList extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  void _showRenameBoxDialog(BuildContext context, BoxSessionProvider provider, BoxData box) {
+    final controller = TextEditingController(text: box.name);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename Box'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: 'Box Name'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
+          ElevatedButton(
+            onPressed: () async {
+              final name = controller.text.trim();
+              if (name.isEmpty || name == box.name) return;
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              
+              navigator.pop();
+              final status = await provider.renameBox(name);
+              if (status != imb_ack_status.ack_ok) {
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(content: Text('Rename failed: $status')),
+                );
+              }
+            },
+            child: const Text('SAVE'),
+          ),
+        ],
+      ),
     );
   }
 }

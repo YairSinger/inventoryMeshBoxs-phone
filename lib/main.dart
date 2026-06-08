@@ -3,16 +3,14 @@ import 'package:provider/provider.dart';
 import 'src/ble_client.dart';
 import 'src/box_session_provider.dart';
 import 'src/ui/mesh_list_page.dart';
-
-import 'package:flutter/foundation.dart';
 import 'src/mock_ble_client.dart';
 
 void main() {
-  const useMock = kDebugMode;
+  const useMock = false;
   
   final IBleClient bleClient = useMock 
     ? MockBleClient() 
-    : BleClient(pinHash: 0x12345678); 
+    : BleClient(); 
   
   runApp(
     MultiProvider(
