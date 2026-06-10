@@ -6,7 +6,7 @@ import 'src/ui/mesh_list_page.dart';
 import 'src/mock_ble_client.dart';
 
 void main() {
-  const useMock = false;
+  const useMock = true;
   
   final IBleClient bleClient = useMock 
     ? MockBleClient() 

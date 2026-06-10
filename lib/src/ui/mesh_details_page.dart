@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../box_session_provider.dart';
+import '../mock_ble_client.dart';
 import '../../protocol.dart';
 import 'registration_overlay.dart';
+import 'box_details_page.dart';
 
 class MeshDetailsPage extends StatelessWidget {
   const MeshDetailsPage({super.key});
@@ -46,10 +48,27 @@ class MeshDetailsPage extends StatelessWidget {
           const RegistrationOverlay(),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => provider.startRegistration(),
-        label: const Text('Add Items'),
-        icon: const Icon(Icons.add),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (provider.bleClient is MockBleClient)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: FloatingActionButton.small(
+                heroTag: 'mockTag',
+                onPressed: () => (provider.bleClient as MockBleClient).simulateTagDrop('MOCK-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}'),
+                tooltip: 'Simulate Tag Drop',
+                backgroundColor: Colors.amber,
+                child: const Icon(Icons.nfc),
+              ),
+            ),
+          FloatingActionButton.extended(
+            heroTag: 'addItems',
+            onPressed: () => provider.startRegistration(),
+            label: const Text('Add Items'),
+            icon: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }
@@ -187,7 +206,6 @@ class _BoxList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<BoxSessionProvider>();
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -195,75 +213,25 @@ class _BoxList extends StatelessWidget {
       itemBuilder: (context, index) {
         final box = boxes[index];
         return Card(
-          child: ExpansionTile(
+          child: ListTile(
             leading: Icon(
               box.isOnline ? Icons.inventory_2 : Icons.inventory_2_outlined,
               color: box.isOnline ? Colors.teal : Colors.grey,
             ),
             title: Text(box.name),
-            subtitle: Text('${box.isOnline ? "Online" : "Last seen ${box.lastSeen}"} • ${box.itemCount} Items'),
-            trailing: box.isOnline 
-              ? IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 20),
-                  onPressed: () => _showRenameBoxDialog(context, provider, box),
-                )
-              : null,
-            children: [
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: box.items.length > 3 ? 3 : box.items.length,
-                itemBuilder: (context, i) {
-                  return ListTile(
-                    dense: true,
-                    title: Text(box.items[i].name),
-                  );
-                },
-              ),
-              if (box.items.length > 3)
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text('... and ${box.items.length - 3} more'),
+            subtitle: Text('${box.isOnline ? "Reachable" : "Last seen ${box.lastSeen}"} • ${box.itemCount} Items'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BoxDetailsPage(box: box),
                 ),
-            ],
+              );
+            },
           ),
         );
       },
-    );
-  }
-
-  void _showRenameBoxDialog(BuildContext context, BoxSessionProvider provider, BoxData box) {
-    final controller = TextEditingController(text: box.name);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rename Box'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: 'Box Name'),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
-          ElevatedButton(
-            onPressed: () async {
-              final name = controller.text.trim();
-              if (name.isEmpty || name == box.name) return;
-              final navigator = Navigator.of(context);
-              final scaffoldMessenger = ScaffoldMessenger.of(context);
-              
-              navigator.pop();
-              final status = await provider.renameBox(name);
-              if (status != imb_ack_status.ack_ok) {
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(content: Text('Rename failed: $status')),
-                );
-              }
-            },
-            child: const Text('SAVE'),
-          ),
-        ],
-      ),
     );
   }
 }

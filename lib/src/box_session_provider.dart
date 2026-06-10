@@ -92,13 +92,25 @@ class BoxSessionProvider extends ChangeNotifier {
   BoxSessionProvider({required this.bleClient}) {
     _eventSub = bleClient.eventStream.listen(_handleBleEvent);
     _scanSub = bleClient.scanResults.listen(_handleScanResults);
-    
-    if (bleClient is MockBleClient) {
+  }
+
+  void startScan() async {
+    if (bleClient is! MockBleClient) {
+      if (await Permission.bluetoothScan.request().isGranted &&
+          await Permission.bluetoothConnect.request().isGranted &&
+          await Permission.location.request().isGranted) {
+        bleClient.startScan();
+      }
+    } else {
       _loadCachedMeshes();
     }
+    notifyListeners();
   }
 
   void _loadCachedMeshes() {
+    // Only load if empty to prevent overriding active test states
+    if (_discoveredMeshes.isNotEmpty) return;
+    
     _discoveredMeshes = [
       MeshData(
         name: 'Camping Trip',
@@ -119,20 +131,12 @@ class BoxSessionProvider extends ChangeNotifier {
           BoxData(id: 0xB2C2, name: 'Gear Box', isOnline: false, lastSeen: '2 hours ago', itemCount: 7),
         ],
       ),
+      MeshData(
+        name: 'New Box (Setup)',
+        pinHash: 0,
+        boxCount: 1,
+      ),
     ];
-  }
-
-  void startScan() async {
-    if (bleClient is! MockBleClient) {
-      if (await Permission.bluetoothScan.request().isGranted &&
-          await Permission.bluetoothConnect.request().isGranted &&
-          await Permission.location.request().isGranted) {
-        bleClient.startScan();
-      }
-    } else {
-      bleClient.startScan();
-    }
-    notifyListeners();
   }
 
   void _handleScanResults(List<ScanResult> results) {
